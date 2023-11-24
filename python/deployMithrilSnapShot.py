@@ -101,7 +101,7 @@ def main():
     print(whi + f"Deploying Latest Mainnet Snapshot: {ind}{digest}")
 
     # Extract contents of the Zstandard-compressed tar archive
-    extract_zst(archive_path, db_dir)
+    extract_zst(db_dir / "snapshot.tar.zst", db_dir)
 
     print()
     print(whi + "Deleting snapshot.tar.zst file")
