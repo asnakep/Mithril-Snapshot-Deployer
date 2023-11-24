@@ -1,8 +1,9 @@
 # deployMithrilSnapShot
 
-Deploy Cardano Blockchain from Latest Mithril Snapshot (mainnet)
+Deploy Cardano Blockchain from Latest Mithril Snapshot (Mainnet)
 
-Find out two solutions to download/uncompress/unarchive the Cardano blockchain onfile database from latest Mithril mainnet snapshot
-under the path specified by user input.
+Discover two solutions to download, uncompress, and unarchive the Cardano blockchain onfile database from the latest Mithril Mainnet snapshot, placing it under the path specified by user input.
 
-Choose between the bash or python script (both do the same action).
+Select either the Bash or Python script; both scripts perform the same action.
+
+Feel free to use this version or make further adjustments based on your preference.
