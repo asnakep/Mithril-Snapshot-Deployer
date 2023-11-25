@@ -1,8 +1,7 @@
 #!/bin/env python3
 
-#!/bin/env python3
-
 import os
+import sys
 import json
 from datetime import datetime
 import requests
