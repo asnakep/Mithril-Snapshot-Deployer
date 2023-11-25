@@ -24,7 +24,7 @@ def download_with_progress(url, save_path):
         for data in response.iter_content(block_size):
             tqdm_bar.update(len(data))
             file.write(data)
-
+            
     tqdm_bar.close()
 
 def extract_zst(archive_path: Path, out_path: Path):
@@ -37,8 +37,6 @@ def extract_zst(archive_path: Path, out_path: Path):
 
     # Untar using tar
     subprocess.run(["tar", "-xvf", str(uncompressed_file), "-C", str(out_path)])
-
-
 
 def main():
     try:
@@ -80,15 +78,11 @@ def main():
       print()
       input_path = input(whi + "Paste your Cardano Blockchain DB Path: \n\n")
       db_dir = Path(input_path.strip()).resolve()
-      
       print()
       print(whi + f"Latest Mithril Snapshot {ind}{digest}")
       print(whi + f"will be downloaded and deployed under directory: {ind}{db_dir}")
-      
       os.chdir(db_dir)
-      
       start_time = datetime.now()
-      
       print(ind)
       
       # Download with dynamic progress bar
