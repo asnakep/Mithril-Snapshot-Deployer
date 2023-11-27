@@ -31,25 +31,25 @@ def decompress_zst(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # If you are on Windows, ensure you've zstd.exe
+    # If you are on Windows, ensure you've tar.exe
     # under C:\Windows\System32
     if platform.system() == "Windows":
-        zstd_executable = 'C:\\Windows\\System32\\zstd.exe'
+        tar_executable = 'C:\\Windows\\System32\\tar.exe'
     else:
-        zstd_executable = 'zstd'
+        tar_executable = 'tar'
 
-    # Use subprocess to call zstd with progress
-    zstd_process = subprocess.Popen(
-        [zstd_executable, '-d', '-c', str(archive)],
+    # Use subprocess to call tar with progress
+    tar_process = subprocess.Popen(
+        [tar_executable, '-I', 'zstd', '-xf', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
     # Create tqdm instance for progress bar
-    progress = tqdm(desc='Decompressing', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
+    progress = tqdm(desc='Unarchiving', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
 
-    with open(out_path / "snapshot.tar", 'wb') as output_file:
+    with open(out_path / "snapshot.tar.zst", 'wb') as output_file:
         while True:
-            chunk = zstd_process.stdout.read(8192)
+            chunk = tar_process.stdout.read(8192)
             if not chunk:
                 break
             output_file.write(chunk)
@@ -59,23 +59,23 @@ def decompress_zst(archive: Path, out_path: Path):
     progress.close()
 
     # Wait for the process to finish
-    zstd_process.wait()
+    tar_process.wait()
 
     # Check for errors
-    if zstd_process.returncode != 0:
-        error_message = zstd_process.stderr.read().decode()
-        print(f"Error during decompression: {error_message}")
+    if tar_process.returncode != 0:
+        error_message = tar_process.stderr.read().decode()
+        print(f"Error during unarchive: {error_message}")
 
     # Close subprocess pipes
-    zstd_process.stdout.close()
-    zstd_process.stderr.close()
+    tar_process.stdout.close()
+    tar_process.stderr.close()
 
 # Run:
 def main():
       try:
        clear_screen()
 
-       # white + greigo colors
+       # white + green colors
        whi = "\033[1;37m"
        gre = '\033[92m'
 
@@ -112,7 +112,7 @@ def main():
        print()
 
        # Get the directory path from the user
-       input_path = input(whi + "Paste the directory where you want to save the file: \n\n")
+       input_path = input(whi + "Paste full path directory target: ")
        db_dir = Path(input_path.strip()).resolve()
 
        # Offer options to the user
@@ -130,6 +130,7 @@ def main():
            print(whi + f"Downloading snapshot to {gre}{db_dir / 'snapshot.tar.zst'}")
            print()
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
+           print()
            print(whi + "Download complete.")
        elif choice == 'f':
            # Run the full script
@@ -152,8 +153,8 @@ def main():
            decompress_zst(db_dir / "snapshot.tar.zst", db_dir)
            print()
 
-           print(whi + "Deleting snapshot.tar file")
-           os.remove(db_dir / "snapshot.tar")
+           print(whi + "Deleting snapshot.tar.zst file")
+           os.remove(db_dir / "snapshot.tar.zst")
 
            print()
            print(whi + f"Latest Mithril Mainnet Snapshot has been restored under: {gre}{db_dir}")
