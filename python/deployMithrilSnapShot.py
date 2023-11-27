@@ -138,9 +138,7 @@ def main():
            print(whi + f"will be downloaded and deployed under directory: {gre}{db_dir}")
 
            os.chdir(db_dir)
-
            start_time = datetime.now()
-
            print(gre)
 
            # Download with dynamic progress bar
