@@ -40,7 +40,7 @@ def decompress_zst(archive: Path, out_path: Path):
 
     # Use subprocess to call tar with progress
     tar_process = subprocess.Popen(
-        [tar_executable, '-I', 'zstd', '-xf', str(archive)],
+        [tar_executable, '-xf', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
@@ -116,8 +116,6 @@ def main():
        db_dir = Path(input_path.strip()).resolve()
 
        # Offer options to the user
-       print()
-       print(whi + "Choose an option:")
        print()
        print(whi + "1. Download snapshot (press d)")
        print(whi + "2. Full snapshot deployment (press f)")
