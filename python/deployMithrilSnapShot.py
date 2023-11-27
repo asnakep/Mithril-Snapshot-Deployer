@@ -7,7 +7,6 @@ import platform
 import requests
 import shutil
 import subprocess
-import tempfile
 from datetime import datetime
 from pathlib import Path
 from tqdm import tqdm
@@ -28,103 +27,153 @@ def download_with_progress(url, save_path):
 
     tqdm_bar.close()
 
-def extract_zst(archive: Path, out_path: Path):
+def decompress_zst(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # If you are on Windows ensure you've zstd.exe and tar.exe
+    # If you are on Windows, ensure you've zstd.exe
     # under C:\Windows\System32
     if platform.system() == "Windows":
-        zstd_executable = r'C:\Windows\System32\zstd.exe'
-        tar_executable = r'C:\Windows\System32\tar.exe'
+        zstd_executable = 'C:\\Windows\\System32\\zstd.exe'
     else:
         zstd_executable = 'zstd'
-        tar_executable = 'tar'
 
-    with tempfile.TemporaryFile(suffix=".tar.zst") as ofh:
-        with archive.open("rb") as ifh:
-            subprocess.run([zstd_executable, '-d', '-c', str(ifh)], stdout=ofh)
+    # Use subprocess to call zstd with progress
+    zstd_process = subprocess.Popen(
+        [zstd_executable, '-d', '-c', str(archive)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
 
-        ofh.seek(0)
-        subprocess.run([tar_executable, '-xf', '-', '-C', str(out_path)], stdin=ofh)
+    # Create tqdm instance for progress bar
+    progress = tqdm(desc='Decompressing', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
 
+    with open(out_path / "snapshot.tar", 'wb') as output_file:
+        while True:
+            chunk = zstd_process.stdout.read(8192)
+            if not chunk:
+                break
+            output_file.write(chunk)
+            progress.update(len(chunk))
 
+    # Close tqdm progress bar
+    progress.close()
+
+    # Wait for the process to finish
+    zstd_process.wait()
+
+    # Check for errors
+    if zstd_process.returncode != 0:
+        error_message = zstd_process.stderr.read().decode()
+        print(f"Error during decompression: {error_message}")
+
+    # Close subprocess pipes
+    zstd_process.stdout.close()
+    zstd_process.stderr.close()
+
+# Run:
 def main():
-    try:
-      clear_screen()
+      try:
+       clear_screen()
 
-      # white + indigo colors
-      whi = "\033[1;37m"
-      ind = "\033[1;35m"
+       # white + greigo colors
+       whi = "\033[1;37m"
+       gre = '\033[92m'
 
-      print(ind + "Deploy Latest Mithril Mainnet Snapshot")
-      print()
 
-      snapshots_url = "https://aggregator.release-mainnet.api.mithril.network/aggregator/artifact/snapshots"
-      response = requests.get(snapshots_url)
-      last_snapshot = response.json()
+       print()
+       print(gre + "Latest Mithril Mainnet Snapshot - Download Only or Full Deploy ")
+       print()
 
-      snapshot_info = last_snapshot[0]["beacon"]
-      digest = last_snapshot[0]["digest"]
-      size_gb = last_snapshot[0]["size"] / 1024 / 1024 / 1024
-      size_gb_format = f"{size_gb:.2f}"
-      created_at =   last_snapshot[0]["created_at"][:19]
-      download_url = last_snapshot[0]["locations"][0]
+       snapshots_url = "https://aggregator.release-mainnet.api.mithril.network/aggregator/artifact/snapshots"
+       response = requests.get(snapshots_url)
+       last_snapshot = response.json()
 
-      print(whi + f"Snapshot Digest: {ind}{digest}")
-      print(whi + f"Network: {ind}{snapshot_info['network']}")
-      print(whi + f"Epoch: {ind}{snapshot_info['epoch']}")
-      print(whi + f"Immutable File Number: {ind}{snapshot_info['immutable_file_number']}")
-      print(whi + f"Certificate Hash: {ind}{last_snapshot[0]['certificate_hash']}")
-      print(whi + f"Size: {ind}{size_gb_format}Gb")
-      print(whi + f"Created At: {ind}{created_at}")
-      print(whi + f"Compression Algorithm: {ind}{last_snapshot[0]['compression_algorithm']}")
-      print(whi + f"Cardano Node Version: {ind}{last_snapshot[0]['cardano_node_version']}")
-      print(whi + f"Download Url: {ind}{download_url}")
+       snapshot_info = last_snapshot[0]["beacon"]
+       digest = last_snapshot[0]["digest"]
+       size_gb = last_snapshot[0]["size"] / 1024 / 1024 / 1024
+       size_gb_format = f"{size_gb:.2f}"
+       created_at = last_snapshot[0]["created_at"][:19]
+       download_url = last_snapshot[0]["locations"][0]
 
-      print()
-      print(whi + "A very large compressed file will be downloaded, take into account that once unarchived")
-      print(whi + "size will be about four times larger than compressed snapshot file.")
-      print(whi + "Please ensure that you've enough space to perform this operation.")
-      print()
-        
-      input_path = input(whi + "Paste your Cardano Blockchain DB Path: \n\n")
-      db_dir = Path(input_path.strip()).resolve()
-      
-      print()
-      print(whi + f"Latest Mithril Snapshot {ind}{digest}")
-      print(whi + f"will be downloaded and deployed under directory: {ind}{db_dir}")
-      
-      os.chdir(db_dir)
-      start_time = datetime.now()
-      print(ind)
+       print(whi + f"Snapshot Digest: {gre}{digest}")
+       print(whi + f"Network: {gre}{snapshot_info['network']}")
+       print(whi + f"Epoch: {gre}{snapshot_info['epoch']}")
+       print(whi + f"Immutable File Number: {gre}{snapshot_info['immutable_file_number']}")
+       print(whi + f"Certificate Hash: {gre}{last_snapshot[0]['certificate_hash']}")
+       print(whi + f"Size: {gre}{size_gb_format}Gb")
+       print(whi + f"Created At: {gre}{created_at}")
+       print(whi + f"Compression Algorithm: {gre}{last_snapshot[0]['compression_algorithm']}")
+       print(whi + f"Cardano Node Version: {gre}{last_snapshot[0]['cardano_node_version']}")
+       print(whi + f"Download Url: {gre}{download_url}")
 
-      # Download with dynamic progress bar
-      download_with_progress(download_url, "snapshot.tar.zst")
+       print()
+       print(whi + "A highly compressed file will expand to roughly four times its size upon extraction.")
+       print(whi + "Please ensure you've enough space to perform this operation.")
+       print()
 
-      print()
-      print(whi + f"Deploying Latest Mainnet Snapshot: {ind}{digest}")
+       # Get the directory path from the user
+       input_path = input(whi + "Paste the directory where you want to save the file: \n\n")
+       db_dir = Path(input_path.strip()).resolve()
 
-      # Extract contents of the Zstandard-compressed tar archive
-      extract_zst(db_dir / "snapshot.tar.zst", db_dir)
+       # Offer options to the user
+       print()
+       print(whi + "Choose an option:")
+       print()
+       print(whi + "1. Download snapshot (press d)")
+       print(whi + "2. Full snapshot deployment (press f)")
+       print()
+       choice = input(whi + "> ").strip().lower()
 
-      print()
-      print(whi + "Deleting snapshot.tar.zst file")
-      os.remove("snapshot.tar.zst")
-      print()
-      print(whi + f"Latest Mithril Mainnet Snapshot has been restored under: {ind}{db_dir}")
-      print(whi)
-      print(os.listdir(db_dir))
-      print()
+       if choice == 'd':
+           # Download only
+           print()
+           print(whi + f"Downloading snapshot to {gre}{db_dir / 'snapshot.tar.zst'}")
+           print()
+           download_with_progress(download_url, db_dir / "snapshot.tar.zst")
+           print(whi + "Download complete.")
+       elif choice == 'f':
+           # Run the full script
+           print()
+           print(whi + f"Latest Mithril Snapshot {gre}{digest}")
+           print(whi + f"will be downloaded and deployed under directory: {gre}{db_dir}")
 
-      end_time = datetime.now()
-      elapsed = end_time - start_time
-      elapsed_str = str(elapsed).split('.')[0]
-      print(f"Elapsed hh:mm:ss {elapsed_str}")
+           os.chdir(db_dir)
 
-    except KeyboardInterrupt:
-        print("\nScript interrupted. Exiting gracefully.")
-        sys.exit(0)
+           start_time = datetime.now()
+
+           print(gre)
+
+           # Download with dynamic progress bar
+           download_with_progress(download_url, db_dir / "snapshot.tar.zst")
+
+           print()
+           print(whi + f"Deploying Latest Mainnet Snapshot: {gre}{digest}")
+           print()
+
+           # Extract contents of the Zstandard-compressed tar archive
+           decompress_zst(db_dir / "snapshot.tar.zst", db_dir)
+           print()
+
+           print(whi + "Deleting snapshot.tar file")
+           os.remove(db_dir / "snapshot.tar")
+
+           print()
+           print(whi + f"Latest Mithril Mainnet Snapshot has been restored under: {gre}{db_dir}")
+           print(whi)
+           print(os.listdir(db_dir))
+           print()
+
+           end_time = datetime.now()
+           elapsed = end_time - start_time
+           elapsed_str = str(elapsed).split('.')[0]
+           print(f"Elapsed hh:mm:ss {elapsed_str}")
+       else:
+           print(whi + "Invalid choice. Please choose 'd' to download only or 'f' to run the full script.")
+
+      except KeyboardInterrupt:
+       print(whi + "\n\nScript interrupted.")
+       print()
+       sys.exit(0)
 
 if __name__ == "__main__":
     main()
