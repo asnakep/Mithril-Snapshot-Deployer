@@ -10,6 +10,7 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 from tqdm import tqdm
+from concurrent.futures import ThreadPoolExecutor
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -31,34 +32,38 @@ def decompress_zst(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # If you are on Windows, ensure you've zstd.exe
+    # If you are on Windows, ensure you've zstd.exe and tar.exe
     # under C:\Windows\System32
     if platform.system() == "Windows":
-        zstd_executable = 'C:\\Windows\\System32\\zstd.exe'
-        tar_executable  = 'C:\\Windows\\System32\\tar.exe'
+        # Get zstd for windows: https://sourceforge.net/projects/zstd-for-windows
+        zstd_executable = os.path.join('C:\\', 'Windows', 'System32', 'zstd.exe')
+        # Get tar for windows: https://gnuwin32.sourceforge.net/packages/gtar.htm
+        tar_executable = os.path.join('C:\\', 'Program Files (x86)', 'GnuWin32', 'bin', 'tar.exe')
     else:
         zstd_executable = 'zstd'
-        tar_executable  = 'tar'
-        
+        tar_executable = 'tar'
+
     # Use subprocess to call zstd for decompression
     zstd_process = subprocess.Popen(
-        [zstd_executable, '--rm', '-d', str(archive)],
+        [zstd_executable, '--no-progress', '--rm', '-d', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
-    # Create tqdm instance for progress bar
-    progress = tqdm(desc='Decompressing', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
+    # Create tqdm instance for progress bar for decompression
+    progress_decompress = tqdm(desc='Decompressing', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
 
     try:
         while True:
             chunk = zstd_process.stdout.read(8192)
             if not chunk:
                 break
-            progress.update(len(chunk))
-
+            progress_decompress.update(len(chunk))
+            # Added this line to refresh the tqdm bar
+            progress_decompress.refresh()
+            
     finally:
         # Close tqdm progress bar
-        progress.close()
+        progress_decompress.close()
 
         # Wait for the process to finish
         zstd_process.wait()
@@ -72,25 +77,24 @@ def decompress_zst(archive: Path, out_path: Path):
         zstd_process.stdout.close()
         zstd_process.stderr.close()
 
+    print()
+
     # Now use tar for extraction
     tar_process = subprocess.Popen(
-        [tar_executable, '-xf', str(out_path / 'snapshot.tar')],
+        [tar_executable, '-xf', 'snapshot.tar'],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=out_path
     )
 
-    # Create tqdm instance for progress bar
-    progress = tqdm(desc='Unarchiving', unit='B', unit_scale=True, dynamic_ncols=True)
+    # Create tqdm instance for progress bar for untarring
+    progress_untar = tqdm(desc='Unarchiving', unit='B', unit_scale=True, dynamic_ncols=True)
+
+    def update_progress(chunk):
+        progress_untar.update(len(chunk))
 
     try:
-        while True:
-            chunk = tar_process.stdout.read(8192)
-            if not chunk:
-                break
-            progress.update(len(chunk))
-
-    finally:
-        # Close tqdm progress bar
-        progress.close()
+        # Use ThreadPoolExecutor to parallelize the update_progress function
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            list(executor.map(update_progress, iter(tar_process.stdout.read, b'')))
 
         # Wait for the process to finish
         tar_process.wait()
@@ -100,11 +104,15 @@ def decompress_zst(archive: Path, out_path: Path):
             error_message = tar_process.stderr.read().decode()
             print(f"Error during unarchive: {error_message}")
 
+    finally:
+        # Close tqdm progress bar
+        progress_untar.close()
+
         # Close subprocess pipes
         tar_process.stdout.close()
         tar_process.stderr.close()
 
-# Run
+# Run:
 def main():
       try:
        clear_screen()
@@ -112,6 +120,7 @@ def main():
        # white + green colors
        whi = "\033[1;37m"
        gre = '\033[92m'
+
 
        print()
        print(gre + "Latest Mithril Mainnet Snapshot - Download Only or Full Deploy ")
