@@ -104,8 +104,7 @@ def decompress_zst(archive: Path, out_path: Path):
         tar_process.stdout.close()
         tar_process.stderr.close()
 
-
-# Run:
+# Run
 def main():
       try:
        clear_screen()
@@ -113,7 +112,6 @@ def main():
        # white + green colors
        whi = "\033[1;37m"
        gre = '\033[92m'
-
 
        print()
        print(gre + "Latest Mithril Mainnet Snapshot - Download Only or Full Deploy ")
