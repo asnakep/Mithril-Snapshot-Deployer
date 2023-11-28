@@ -31,44 +31,79 @@ def decompress_zst(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # If you are on Windows, ensure you've tar.exe
+    # If you are on Windows, ensure you've zstd.exe
     # under C:\Windows\System32
     if platform.system() == "Windows":
-        tar_executable = 'C:\\Windows\\System32\\tar.exe'
+        zstd_executable = 'C:\\Windows\\System32\\zstd.exe'
+        tar_executable  = 'C:\\Windows\\System32\\tar.exe'
     else:
-        tar_executable = 'tar'
-
-    # Use subprocess to call tar with progress
-    tar_process = subprocess.Popen(
-        [tar_executable, '-xf', str(archive)],
+        zstd_executable = 'zstd'
+        tar_executable  = 'tar'
+        
+    # Use subprocess to call zstd for decompression
+    zstd_process = subprocess.Popen(
+        [zstd_executable, '--rm', '-d', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
     # Create tqdm instance for progress bar
-    progress = tqdm(desc='Unarchiving', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
+    progress = tqdm(desc='Decompressing', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
 
-    with open(out_path / "snapshot.tar.zst", 'wb') as output_file:
+    try:
+        while True:
+            chunk = zstd_process.stdout.read(8192)
+            if not chunk:
+                break
+            progress.update(len(chunk))
+
+    finally:
+        # Close tqdm progress bar
+        progress.close()
+
+        # Wait for the process to finish
+        zstd_process.wait()
+
+        # Check for errors
+        if zstd_process.returncode != 0:
+            error_message = zstd_process.stderr.read().decode()
+            print(f"Error during decompression: {error_message}")
+
+        # Close subprocess pipes
+        zstd_process.stdout.close()
+        zstd_process.stderr.close()
+
+    # Now use tar for extraction
+    tar_process = subprocess.Popen(
+        [tar_executable, '-xf', str(out_path / 'snapshot.tar')],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=out_path
+    )
+
+    # Create tqdm instance for progress bar
+    progress = tqdm(desc='Unarchiving', unit='B', unit_scale=True, dynamic_ncols=True)
+
+    try:
         while True:
             chunk = tar_process.stdout.read(8192)
             if not chunk:
                 break
-            output_file.write(chunk)
             progress.update(len(chunk))
 
-    # Close tqdm progress bar
-    progress.close()
+    finally:
+        # Close tqdm progress bar
+        progress.close()
 
-    # Wait for the process to finish
-    tar_process.wait()
+        # Wait for the process to finish
+        tar_process.wait()
 
-    # Check for errors
-    if tar_process.returncode != 0:
-        error_message = tar_process.stderr.read().decode()
-        print(f"Error during unarchive: {error_message}")
+        # Check for errors
+        if tar_process.returncode != 0:
+            error_message = tar_process.stderr.read().decode()
+            print(f"Error during unarchive: {error_message}")
 
-    # Close subprocess pipes
-    tar_process.stdout.close()
-    tar_process.stderr.close()
+        # Close subprocess pipes
+        tar_process.stdout.close()
+        tar_process.stderr.close()
+
 
 # Run:
 def main():
@@ -151,8 +186,8 @@ def main():
            decompress_zst(db_dir / "snapshot.tar.zst", db_dir)
            print()
 
-           print(whi + "Deleting snapshot.tar.zst file")
-           os.remove(db_dir / "snapshot.tar.zst")
+           print(whi + "Deleting snapshot.tar file")
+           os.remove(db_dir / "snapshot.tar")
 
            print()
            print(whi + f"Latest Mithril Mainnet Snapshot has been restored under: {gre}{db_dir}")
