@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/run/current-system/sw/bin/bash
 
 export whi=`printf "\033[1;37m"`
 export gre=`printf "\033[1;36m"`
@@ -49,9 +49,7 @@ downloadUrl=$(echo $last_snapshot | jq -r '.locations[]')
 echo $whi"Download Url: $gre$downloadUrl"
 
 echo
-echo $whi"A very large compressed file will be downloaded, take into account that once unarchived"
-echo
-echo $whi"size will be about three times larger than compressed snapshot file."
+echo $whi"A highly compressed file will expand to roughly four times its size upon extraction."
 echo
 echo $whi"Please ensure you've enough space to perform this operation."
 echo
@@ -77,11 +75,11 @@ mv mainnet-*.tar.zst snapshot.tar.zst
 echo
 echo $whi"Deploying Lastest Mainnet Snapshot: $gre$snapDigest"
 echo
-zstd -d snapshot.tar.zst
-tar -xvf snapshot.tar
+echo "Extracting snapshot.tar.zst"
+tar -xvf snapshot.tar.zst
 echo
-echo $whi"Deleting snapshot.tar.zst and snapshot.tar files"
-rm snapshot.tar.zst snapshot.tar
+echo $whi"Deleting snapshot.tar.zst"
+rm snapshot.tar.zst
 echo
 echo $whi"Cardano Blockchain DB has been restored under: $gre$dbDir"
 echo $whi
