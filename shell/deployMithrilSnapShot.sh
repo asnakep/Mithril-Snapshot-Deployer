@@ -49,9 +49,11 @@ downloadUrl=$(echo $last_snapshot | jq -r '.locations[]')
 echo $whi"Download Url: $gre$downloadUrl"
 
 echo
-echo $whi"A highly compressed file will expand to roughly four times its size upon extraction."
+echo $whi"A very large compressed file will be downloaded, take into account that once unarchived"
 echo
-echo $whi"Please ensure that you've enough space to perform this operation."
+echo $whi"size will be about three times larger than compressed snapshot file."
+echo
+echo $whi"Please ensure you've enough space to perform this operation."
 echo
 echo $whi"Paste your Cardano Blockchain DB Path: "
 echo
@@ -75,19 +77,11 @@ mv mainnet-*.tar.zst snapshot.tar.zst
 echo
 echo $whi"Deploying Lastest Mainnet Snapshot: $gre$snapDigest"
 echo
-echo $whi"Decompressing snapshot.tar.zst"
-echo
 zstd -d snapshot.tar.zst
-echo
-echo $whi"Deleting snapshot.tar.zst"
-rm snapshot.tar.zst
-echo
-echo "Extracting snapshot.tar"
-echo
 tar -xvf snapshot.tar
 echo
-echo $whi"Deleting snapshot.tar"
-rm snapshot.tar
+echo $whi"Deleting snapshot.tar.zst and snapshot.tar files"
+rm snapshot.tar.zst snapshot.tar
 echo
 echo $whi"Cardano Blockchain DB has been restored under: $gre$dbDir"
 echo $whi
