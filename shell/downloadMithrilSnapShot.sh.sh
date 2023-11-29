@@ -51,7 +51,7 @@ echo $whi"Download Url: $gre$downloadUrl"
 echo
 echo $whi"A very large compressed file will be downloaded, size: $size_gb_format""Gb "
 echo
-echo $whi"Please ensure that you've enough space to perform this operation."
+echo $whi"Please ensure you've enough space to perform this operation."
 echo
 echo $whi"Paste your Cardano Blockchain DB Path: "
 echo
