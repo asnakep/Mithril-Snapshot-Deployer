@@ -6,7 +6,7 @@ export gre=`printf "\033[1;36m"`
 tput clear
 
 echo
-echo $gre"Deploy Latest Mithril Mainnet Snapshot"
+echo $gre"Download Latest Mithril Mainnet Snapshot"
 echo
 
 ### snapshots json url
@@ -49,7 +49,7 @@ downloadUrl=$(echo $last_snapshot | jq -r '.locations[]')
 echo $whi"Download Url: $gre$downloadUrl"
 
 echo
-echo $whi"A highly compressed file will expand to roughly four times its size upon extraction."
+echo $whi"A very large compressed file will be downloaded, size: $size_gb_format""Gb "
 echo
 echo $whi"Please ensure that you've enough space to perform this operation."
 echo
@@ -61,34 +61,9 @@ dbdir=$inputPath
 echo
 
 echo $whi"Latest Mithril Snapshot $gre$digest"
-echo $whi"will be downloaded and deployed under directory: $gre$dbdir"
+echo $whi"will be downloaded under directory: $gre$dbdir"
 echo $gre
 
 cd $dbdir
 
-start_time=$(date "+%s")
-
 wget -q --show-progress $downloadUrl
-echo
-echo $whi"Renaming $(ls $dbdir) to snapshot.tar.zst"
-mv mainnet-*.tar.zst snapshot.tar.zst
-echo
-echo $whi"Deploying Lastest Mainnet Snapshot: $gre$snapDigest"
-echo
-echo "Extracting snapshot.tar.zst"
-echo
-tar -xvf snapshot.tar.zst
-echo
-echo $whi"Deleting snapshot.tar.zst"
-rm snapshot.tar.zst
-echo
-echo $whi"Cardano Blockchain DB has been restored under: $gre$dbDir"
-echo $whi
-
-ls -l $dbDir
-echo
-
-end_time=$(date "+%s")
-elapsed=$(date -u -d @$((end_time - start_time)) +"%T")
-
-echo "Elapsed hh:mm:ss $elapsed"
