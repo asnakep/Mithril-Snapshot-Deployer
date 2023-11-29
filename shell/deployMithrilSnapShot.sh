@@ -1,4 +1,4 @@
-#!/run/current-system/sw/bin/bash
+#!/bin/bash
 
 export whi=`printf "\033[1;37m"`
 export gre=`printf "\033[1;36m"`
