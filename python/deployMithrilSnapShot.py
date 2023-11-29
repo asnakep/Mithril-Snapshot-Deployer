@@ -90,12 +90,15 @@ def decompress_zst(archive: Path, out_path: Path):
 
     def update_progress(chunk):
         progress_untar.update(len(chunk))
-
+    
     try:
         # Use ThreadPoolExecutor to parallelize the update_progress function
         with ThreadPoolExecutor(max_workers=1) as executor:
             list(executor.map(update_progress, iter(tar_process.stdout.read, b'')))
 
+        # Added this line to refresh the tqdm bar
+        progress_untar.refresh()
+    
         # Wait for the process to finish
         tar_process.wait()
 
@@ -206,6 +209,7 @@ def main():
            elapsed = end_time - start_time
            elapsed_str = str(elapsed).split('.')[0]
            print(f"Elapsed hh:mm:ss {elapsed_str}")
+           print()
        else:
            print(whi + "Invalid choice. Please choose 'd' to download only or 'f' to run the full script.")
 
