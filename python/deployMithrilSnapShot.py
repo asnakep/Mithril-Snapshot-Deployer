@@ -45,7 +45,7 @@ def expand_snap(archive: Path, out_path: Path):
 
     # Use subprocess to call zstd for decompression
     zstd_process = subprocess.Popen(
-        [zstd_executable, '-d', '--stdout', str(archive)],
+        [zstd_executable, '--rm', '-d', '--stdout', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
