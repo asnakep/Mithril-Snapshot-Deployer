@@ -10,6 +10,9 @@ import subprocess
 from datetime import datetime
 from pathlib import Path
 from tqdm import tqdm
+from progress.bar import Bar
+
+
 from concurrent.futures import ThreadPoolExecutor
 
 def clear_screen():
@@ -45,38 +48,40 @@ def decompress_zst(archive: Path, out_path: Path):
 
     # Use subprocess to call zstd for decompression
     zstd_process = subprocess.Popen(
-        [zstd_executable, '--no-progress', '--rm', '-d', str(archive)],
+        [zstd_executable, '--rm', '-d', '--stdout', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
-    # Create tqdm instance for progress bar for decompression
-    progress_decompress = tqdm(desc='Decompressing', unit='B', unit_scale=True, dynamic_ncols=True, total=os.path.getsize(archive))
+    # Get total size for progress calculation
+    total_size = os.path.getsize(archive) / 1024 / 1024
+    chunk_size = 8192
+    processed_size = 0
 
     try:
-        while True:
-            chunk = zstd_process.stdout.read(8192)
-            if not chunk:
-                break
-            progress_decompress.update(len(chunk))
-            # Added this line to refresh the tqdm bar
-            progress_decompress.refresh()
-            
-    finally:
-        # Close tqdm progress bar
-        progress_decompress.close()
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, Bar('Decompressing snapshot.tar.zst:', fill='|', max=total_size, suffix='%(index)d/%(max)d Megabytes - %(percent).1f%% - %(eta)ds') as bar:
+            while True:
+                chunk = zstd_process.stdout.read(chunk_size)
+                if not chunk:
+                    break
+                out_file.write(chunk)
 
+                processed_size += len(chunk)  / 1024 / 1024
+                bar.goto(processed_size)
+
+    finally:
         # Wait for the process to finish
         zstd_process.wait()
 
         # Check for errors
         if zstd_process.returncode != 0:
             error_message = zstd_process.stderr.read().decode()
-            print(f"Error during decompression: {error_message}")
+            print(f"\nError during decompression: {error_message}")
 
         # Close subprocess pipes
         zstd_process.stdout.close()
         zstd_process.stderr.close()
 
+      
     print()
 
     # Now use tar for extraction
@@ -85,20 +90,27 @@ def decompress_zst(archive: Path, out_path: Path):
         stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=out_path
     )
 
-    # Create tqdm instance for progress bar for untarring
-    progress_untar = tqdm(desc='Unarchiving', unit='B', unit_scale=True, dynamic_ncols=True)
+    # Get total size for progress calculation
+    total_size_untar = os.path.getsize('snapshot.tar')
+    chunk_size_untar = 8192
+    processed_size_untar = 0
 
-    def update_progress(chunk):
-        progress_untar.update(len(chunk))
-    
+    # Create progress bar for untarring
+    progress_untar = Bar('Unarchiving snapshot.tar', fill='|',max=total_size_untar, suffix='%(percent).1f%% - %(eta)ds')
+
     try:
-        # Use ThreadPoolExecutor to parallelize the update_progress function
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            list(executor.map(update_progress, iter(tar_process.stdout.read, b'')))
+        while True:
+            chunk = tar_process.stdout.read(chunk_size_untar)
+            if not chunk:
+                break
 
-        # Added this line to refresh the tqdm bar
-        progress_untar.refresh()
-    
+            processed_size_untar += len(chunk)
+            progress_untar.goto(processed_size_untar)
+
+    finally:
+        # Added this line to refresh the progress bar
+        progress_untar.finish()
+
         # Wait for the process to finish
         tar_process.wait()
 
@@ -107,15 +119,11 @@ def decompress_zst(archive: Path, out_path: Path):
             error_message = tar_process.stderr.read().decode()
             print(f"Error during unarchive: {error_message}")
 
-    finally:
-        # Close tqdm progress bar
-        progress_untar.close()
+    # Close subprocess pipes
+    tar_process.stdout.close()
+    tar_process.stderr.close()
 
-        # Close subprocess pipes
-        tar_process.stdout.close()
-        tar_process.stderr.close()
-
-# Run:
+# Run program:
 def main():
       try:
        clear_screen()
@@ -170,7 +178,7 @@ def main():
        if choice == 'd':
            # Download only
            print()
-           print(whi + f"Downloading snapshot to {gre}{db_dir / 'snapshot.tar.zst'}")
+           print(whi + f"Downloading snapshot to: {gre}{db_dir / 'snapshot.tar.zst'}" + whi)
            print()
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
            print()
@@ -183,14 +191,14 @@ def main():
 
            os.chdir(db_dir)
            start_time = datetime.now()
-           print(gre)
+           print(whi)
 
            # Download with dynamic progress bar
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
 
            print()
            print(whi + f"Deploying Latest Mainnet Snapshot: {gre}{digest}")
-           print()
+           print(whi)
 
            # Extract contents of the Zstandard-compressed tar archive
            decompress_zst(db_dir / "snapshot.tar.zst", db_dir)
@@ -209,7 +217,6 @@ def main():
            elapsed = end_time - start_time
            elapsed_str = str(elapsed).split('.')[0]
            print(f"Elapsed hh:mm:ss {elapsed_str}")
-           print()
        else:
            print(whi + "Invalid choice. Please choose 'd' to download only or 'f' to run the full script.")
 
