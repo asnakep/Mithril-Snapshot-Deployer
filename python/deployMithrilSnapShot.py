@@ -190,9 +190,6 @@ def main():
 
            # Download with dynamic progress bar
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
-
-           print()
-           print(whi + f"Deploying Latest Mainnet Snapshot: {gre}{digest}")
            print(whi)
 
            # Extract contents of the Zstandard-compressed tar archive
