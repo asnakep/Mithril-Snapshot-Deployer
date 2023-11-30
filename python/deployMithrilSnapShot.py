@@ -7,45 +7,45 @@ import platform
 import requests
 import shutil
 import subprocess
+import tarfile
 from datetime import datetime
 from pathlib import Path
-from tqdm import tqdm
-from progress.bar import Bar
+from progress.bar import IncrementalBar
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
+# Download Mithril Snapshot
 def download_with_progress(url, save_path):
     response = requests.get(url, stream=True)
     total_size = int(response.headers.get('content-length', 0))
     block_size = 1024
-    tqdm_bar = tqdm(total=total_size, unit='iB', unit_scale=True, dynamic_ncols=True, bar_format='{desc:<5.5}{percentage:3.0f}%|{bar:40}{r_bar}')
+    processed_size = 0
 
-    with open(save_path, 'wb') as file:
+    # Create progress bar for downloading
+    with open(save_path, 'wb') as file, IncrementalBar('     Getting snapshot.tar.zst     ', index=processed_size, max=total_size,
+    suffix='%(percent).1f%%  - Downloaded: %(index)d of %(max)d Bytes - Eta: %(eta)ds') as bar:
+
         for data in response.iter_content(block_size):
-            tqdm_bar.update(len(data))
             file.write(data)
+            processed_size += len(data)
+            bar.goto(processed_size)
 
-    tqdm_bar.close()
+    bar.finish()
 
-def decompress_zst(archive: Path, out_path: Path):
+# decompress snapshot.tar.zst
+def expand_snap(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # If you are on Windows, ensure you've zstd.exe and tar.exe
-    # under C:\Windows\System32
     if platform.system() == "Windows":
-        # Get zstd for windows: https://sourceforge.net/projects/zstd-for-windows
         zstd_executable = os.path.join('C:\\', 'Windows', 'System32', 'zstd.exe')
-        # Get tar for windows: https://gnuwin32.sourceforge.net/packages/gtar.htm
-        tar_executable = os.path.join('C:\\', 'Program Files (x86)', 'GnuWin32', 'bin', 'tar.exe')
     else:
         zstd_executable = 'zstd'
-        tar_executable = 'tar'
 
     # Use subprocess to call zstd for decompression
     zstd_process = subprocess.Popen(
-        [zstd_executable, '--rm', '-d', '--stdout', str(archive)],
+        [zstd_executable, '-d', '--stdout', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
@@ -55,7 +55,8 @@ def decompress_zst(archive: Path, out_path: Path):
     processed_size = 0
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, Bar('     Decompressing snapshot.tar.zst:', fill='|', max=total_size, suffix='%(index)d/%(max)d Megabytes - %(percent).1f%%') as bar:
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, IncrementalBar('Decompressing snapshot.tar.zst     ', index=processed_size, max=total_size,
+          suffix='%(percent).1f%%  - Expanded: %(index)d Mb - Eta: %(eta)ds') as bar:
             while True:
                 chunk = zstd_process.stdout.read(chunk_size)
                 if not chunk:
@@ -78,46 +79,34 @@ def decompress_zst(archive: Path, out_path: Path):
         zstd_process.stdout.close()
         zstd_process.stderr.close()
 
-    print()
 
-    # Now use tar for extraction
-    tar_process = subprocess.Popen(
-        [tar_executable, '-xf', 'snapshot.tar'],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=out_path
-    )
+def untar_snap(archive: Path, out_path: Path):
+    archive = Path(archive).expanduser()
+    out_path = Path(out_path).expanduser().resolve()
 
-    # Get total size for progress calculation
-    total_size_untar = os.path.getsize('snapshot.tar')
-    chunk_size_untar = 8192
-    processed_size_untar = 0
+    # If you are on Windows, ensure you've tar.exe in the PATH
+    if platform.system() == "Windows":
+        tar_executable = 'tar.exe'
+    else:
+        tar_executable = 'tar'
 
-    # Create progress bar for untarring
-    progress_untar = Bar('     Unarchiving snapshot.tar', fill='|',max=total_size_untar, suffix='%(percent).1f%%')
+    # Open the tar archive for reading
+    with tarfile.open(archive, 'r') as tar:
+        # Get total size for progress calculation
+        total_size_untar = sum(member.size for member in tar.getmembers())
+        processed_size_untar = 0
+        chunk_size_untar = 8192
 
-    try:
-        while True:
-            chunk = tar_process.stdout.read(chunk_size_untar)
-            if not chunk:
-                break
+        # Create progress bar for untarring
+        progress_untar = IncrementalBar('     Unarchiving snapshot.tar', max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d Bytes - Eta: %(eta)ds')
 
-            processed_size_untar += len(chunk)
+        # Iterate through members and extract each file
+        for member in tar:
+            tar.extract(member, path=out_path)
+            processed_size_untar += member.size
             progress_untar.goto(processed_size_untar)
 
-    finally:
-        # Added this line to refresh the progress bar
         progress_untar.finish()
-
-        # Wait for the process to finish
-        tar_process.wait()
-
-        # Check for errors
-        if tar_process.returncode != 0:
-            error_message = tar_process.stderr.read().decode()
-            print(f"Error during unarchive: {error_message}")
-
-    # Close subprocess pipes
-    tar_process.stdout.close()
-    tar_process.stderr.close()
 
 # Run program:
 def main():
@@ -193,8 +182,11 @@ def main():
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
            print(whi)
 
-           # Extract contents of the Zstandard-compressed tar archive
-           decompress_zst(db_dir / "snapshot.tar.zst", db_dir)
+           # Decompres and Extract contents of the Zstandard-compressed tar archive
+           expand_snap(db_dir / "snapshot.tar.zst", db_dir)
+           print()
+
+           untar_snap(db_dir / "snapshot.tar", db_dir)
            print()
 
            print(whi + "Deleting snapshot.tar file")
@@ -210,6 +202,7 @@ def main():
            elapsed = end_time - start_time
            elapsed_str = str(elapsed).split('.')[0]
            print(f"Elapsed hh:mm:ss {elapsed_str}")
+           print()
        else:
            print(whi + "Invalid choice. Please choose 'd' to download only or 'f' to run the full script.")
 
