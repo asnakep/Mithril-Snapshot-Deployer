@@ -128,7 +128,6 @@ def main():
        whi = "\033[1;37m"
        gre = '\033[92m'
 
-
        print()
        print(gre + "Latest Mithril Mainnet Snapshot - Download Only or Full Deploy ")
        print()
