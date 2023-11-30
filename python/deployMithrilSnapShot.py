@@ -12,9 +12,6 @@ from pathlib import Path
 from tqdm import tqdm
 from progress.bar import Bar
 
-
-from concurrent.futures import ThreadPoolExecutor
-
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
 
@@ -81,7 +78,6 @@ def decompress_zst(archive: Path, out_path: Path):
         zstd_process.stdout.close()
         zstd_process.stderr.close()
 
-      
     print()
 
     # Now use tar for extraction
