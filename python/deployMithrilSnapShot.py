@@ -55,7 +55,7 @@ def decompress_zst(archive: Path, out_path: Path):
     processed_size = 0
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, Bar('Decompressing snapshot.tar.zst:', fill='|', max=total_size, suffix='%(index)d/%(max)d Megabytes - %(percent).1f%% - %(eta)ds') as bar:
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, Bar('     Decompressing snapshot.tar.zst:', fill='|', max=total_size, suffix='%(index)d/%(max)d Megabytes - %(percent).1f%% - %(eta)ds') as bar:
             while True:
                 chunk = zstd_process.stdout.read(chunk_size)
                 if not chunk:
@@ -92,7 +92,7 @@ def decompress_zst(archive: Path, out_path: Path):
     processed_size_untar = 0
 
     # Create progress bar for untarring
-    progress_untar = Bar('Unarchiving snapshot.tar', fill='|',max=total_size_untar, suffix='%(percent).1f%% - %(eta)ds')
+    progress_untar = Bar('     Unarchiving snapshot.tar', fill='|',max=total_size_untar, suffix='%(percent).1f%% - %(eta)ds')
 
     try:
         while True:
@@ -127,6 +127,7 @@ def main():
        # white + green colors
        whi = "\033[1;37m"
        gre = '\033[92m'
+
 
        print()
        print(gre + "Latest Mithril Mainnet Snapshot - Download Only or Full Deploy ")
