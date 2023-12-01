@@ -188,12 +188,11 @@ def main():
            print()
            untar_snap(db_dir / "snapshot.tar", db_dir)
            os.remove(db_dir / "snapshot.tar")
-
+           print()
            print(whi + f"Snapshot has been restored under: {gre}{db_dir}")
            print(whi)
            print(os.listdir(db_dir))
            print()
-
            end_time = datetime.now()
            elapsed = end_time - start_time
            elapsed_str = str(elapsed).split('.')[0]
