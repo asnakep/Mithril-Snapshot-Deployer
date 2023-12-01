@@ -8,9 +8,11 @@ import requests
 import shutil
 import subprocess
 import tarfile
-from datetime import datetime
 from pathlib import Path
+from datetime import datetime
+from progress.bar import ChargingBar
 from progress.bar import IncrementalBar
+from progress.spinner import Spinner
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -23,8 +25,8 @@ def download_with_progress(url, save_path):
     processed_size = 0
 
     # Create progress bar for downloading
-    with open(save_path, 'wb') as file, IncrementalBar(' Get       Snapshot ', index=processed_size, max=total_size,
-    suffix='%(percent).1f%%  - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
+    with open(save_path, 'wb') as file, ChargingBar(' Get        ', index=processed_size, max=total_size,
+    suffix='%(percent).1f%% - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
             file.write(data)
@@ -33,7 +35,7 @@ def download_with_progress(url, save_path):
 
     bar.finish()
 
-# decompress snapshot.tar.zst
+# Decompress snapshot.tar.zst
 def expand_snap(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
@@ -55,7 +57,7 @@ def expand_snap(archive: Path, out_path: Path):
     processed_size = 0
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, IncrementalBar(' Expand    Snapshot ', index=processed_size,
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' Expand     ', index=processed_size,
           suffix='Inflated: %(index)dGb') as bar:
             while True:
                 chunk = zstd_process.stdout.read(chunk_size)
@@ -63,15 +65,8 @@ def expand_snap(archive: Path, out_path: Path):
                     break
                 out_file.write(chunk)
 
-                # processed_size += len(chunk)  / 1024 / 1024 / 1024
-                # bar.goto(processed_size)
-
-                # Check the size of the expanded tar file
-                expanded_size = os.path.getsize(out_path / 'snapshot.tar') / 1024 / 1024 / 1024  # Size in GB
-                processed_size = expanded_size
+                processed_size += len(chunk)  / 1024 / 1024 / 1024
                 bar.goto(processed_size)
-
-
     finally:
         # Wait for the process to finish
         zstd_process.wait()
@@ -85,7 +80,7 @@ def expand_snap(archive: Path, out_path: Path):
         zstd_process.stdout.close()
         zstd_process.stderr.close()
 
-
+# Untar snapshot.tar
 def untar_snap(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
@@ -104,7 +99,7 @@ def untar_snap(archive: Path, out_path: Path):
         chunk_size_untar = 8192
 
         # Create progress bar for untarring
-        progress_untar = IncrementalBar(' Unarchive Snapshot ', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
+        progress_untar = IncrementalBar(' Unarchive  ', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
 
         # Iterate through members and extract each file
         for member in tar:
@@ -190,10 +185,10 @@ def main():
            # Decompres and Extract contents of the Zstandard-compressed tar archive
            expand_snap(db_dir / "snapshot.tar.zst", db_dir)
            os.remove(db_dir / "snapshot.tar.zst")
-          
+           print()
            untar_snap(db_dir / "snapshot.tar", db_dir)
            os.remove(db_dir / "snapshot.tar")
-           
+
            print(whi + f"Snapshot has been restored under: {gre}{db_dir}")
            print(whi)
            print(os.listdir(db_dir))
