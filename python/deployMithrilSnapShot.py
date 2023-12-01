@@ -18,17 +18,17 @@ def clear_screen():
 # Download Mithril Snapshot
 def download_with_progress(url, save_path):
     response = requests.get(url, stream=True)
-    total_size = int(response.headers.get('content-length', 0))  / 1024 / 1024
+    total_size = int(response.headers.get('content-length', 0))  / 1024 / 1024 / 1024
     block_size = 1024
     processed_size = 0
 
     # Create progress bar for downloading
     with open(save_path, 'wb') as file, IncrementalBar(' Getting Snapshot     ', index=processed_size, max=total_size,
-    suffix='%(percent).1f%%  - Downloaded: %(index)d/%(max)dMb - Eta: %(eta)ds') as bar:
+    suffix='%(percent).1f%%  - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
             file.write(data)
-            processed_size += len(data) / 1024 / 1024
+            processed_size += len(data) / 1024 / 1024 / 1024
             bar.goto(processed_size)
 
     bar.finish()
