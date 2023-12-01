@@ -196,7 +196,7 @@ def main():
            os.remove(db_dir / "snapshot.tar")
            print()
 
-           print(whi + f"Latest Mithril Mainnet Snapshot has been restored under: {gre}{db_dir}")
+           print(whi + f"Snapshot has been restored under: {gre}{db_dir}")
            print(whi)
            print(os.listdir(db_dir))
            print()
