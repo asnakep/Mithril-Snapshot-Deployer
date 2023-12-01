@@ -45,7 +45,7 @@ def expand_snap(archive: Path, out_path: Path):
 
     # Use subprocess to call zstd for decompression
     zstd_process = subprocess.Popen(
-        [zstd_executable, '--rm', '-d', '--stdout', str(archive)],
+        [zstd_executable, '-d', '--stdout', str(archive)],
         stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
 
@@ -180,19 +180,23 @@ def main():
 
            # Download with dynamic progress bar
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
-           print(whi)
+           print()
 
            # Decompres and Extract contents of the Zstandard-compressed tar archive
            expand_snap(db_dir / "snapshot.tar.zst", db_dir)
            print()
 
+           print(whi + "Deleting snapshot.tar.zst")
+           os.remove(db_dir / "snapshot.tar.zst")
+           print()
+           
            untar_snap(db_dir / "snapshot.tar", db_dir)
            print()
 
-           print(whi + "Deleting snapshot.tar file")
+           print(whi + "Deleting snapshot.tar")
            os.remove(db_dir / "snapshot.tar")
-
            print()
+
            print(whi + f"Latest Mithril Mainnet Snapshot has been restored under: {gre}{db_dir}")
            print(whi)
            print(os.listdir(db_dir))
