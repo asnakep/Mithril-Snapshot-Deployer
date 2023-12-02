@@ -11,8 +11,8 @@ import tarfile
 from pathlib import Path
 from datetime import datetime
 from progress.bar import ChargingBar
+from progress.bar import ShadyBar
 from progress.bar import IncrementalBar
-from progress.spinner import Spinner
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -57,7 +57,7 @@ def expand_snap(archive: Path, out_path: Path):
     processed_size = 0
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' Expand     ', index=processed_size,
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, ShadyBar(' Expand     ', index=processed_size,
           suffix='Inflated: %(index)dGb') as bar:
             while True:
                 chunk = zstd_process.stdout.read(chunk_size)
@@ -67,6 +67,8 @@ def expand_snap(archive: Path, out_path: Path):
 
                 processed_size += len(chunk)  / 1024 / 1024 / 1024
                 bar.goto(processed_size)
+        bar.finish()
+
     finally:
         # Wait for the process to finish
         zstd_process.wait()
