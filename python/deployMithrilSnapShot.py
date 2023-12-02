@@ -10,9 +10,9 @@ import subprocess
 import tarfile
 from pathlib import Path
 from datetime import datetime
-from progress.spinner import Spinner
+from progress.bar import ShadyBar
 from progress.bar import ChargingBar
-from progress.bar import IncrementalBar
+from progress.spinner import Spinner
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -101,7 +101,7 @@ def untar_snap(archive: Path, out_path: Path):
         chunk_size_untar = 8192
 
         # Create progress bar for untarring
-        progress_untar = IncrementalBar(' Unarchiving', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
+        progress_untar = ShadyBar(' Unarchiving', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
 
         # Iterate through members and extract each file
         for member in tar:
