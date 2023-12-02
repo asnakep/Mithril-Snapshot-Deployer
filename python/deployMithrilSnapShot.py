@@ -64,7 +64,7 @@ def main():
        gre = '\033[92m'
 
        print()
-       print(gre + "Latest Mithril Mainnet Snapshot")
+       print(gre + "Mithril Snapshot Deployer")
        print()
 
        snapshots_url = "https://aggregator.release-mainnet.api.mithril.network/aggregator/artifact/snapshots"
