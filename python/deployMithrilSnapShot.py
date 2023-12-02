@@ -13,6 +13,7 @@ from datetime import datetime
 from progress.bar import ChargingBar
 from progress.bar import ShadyBar
 from progress.bar import IncrementalBar
+from progress.spinner import Spinner
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
@@ -57,8 +58,8 @@ def expand_snap(archive: Path, out_path: Path):
     processed_size = 0
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, ShadyBar(' Expand     ', index=processed_size,
-          suffix='Inflated: %(index)dGb') as bar:
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' Expanding snapshot.tar.zst   ', 
+        index=processed_size, suffix='Inflated: %(index)dGb') as spin:
             while True:
                 chunk = zstd_process.stdout.read(chunk_size)
                 if not chunk:
@@ -66,8 +67,8 @@ def expand_snap(archive: Path, out_path: Path):
                 out_file.write(chunk)
 
                 processed_size += len(chunk)  / 1024 / 1024 / 1024
-                bar.goto(processed_size)
-        bar.finish()
+                spin.next()
+        spin.finish()
 
     finally:
         # Wait for the process to finish
