@@ -10,10 +10,9 @@ import subprocess
 import tarfile
 from pathlib import Path
 from datetime import datetime
-from progress.bar import ChargingBar
-from progress.bar import ShadyBar
-from progress.bar import IncrementalBar
 from progress.spinner import Spinner
+from progress.bar import ChargingBar
+from progress.bar import IncrementalBar
 
 def clear_screen():
     os.system('cls' if os.name == 'nt' else 'clear')
