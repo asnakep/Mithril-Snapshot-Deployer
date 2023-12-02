@@ -3,12 +3,14 @@
 import os
 import sys
 import json
+import platform
 import requests
+import shutil
+import subprocess
 import tarfile
-import tempfile
-import zstandard
 from pathlib import Path
 from datetime import datetime
+from progress.bar import ShadyBar
 from progress.bar import ChargingBar
 from progress.spinner import Spinner
 
@@ -23,7 +25,7 @@ def download_with_progress(url, save_path):
     processed_size = 0
 
     # Create progress bar for downloading
-    with open(save_path, 'wb') as file, ChargingBar(' - Fetching Snapshot ', index=processed_size, max=total_size,
+    with open(save_path, 'wb') as file, ChargingBar(' - Get Snapshot           ', index=processed_size, max=total_size,
     suffix='    %(percent).1f%% - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
@@ -33,28 +35,77 @@ def download_with_progress(url, save_path):
 
     bar.finish()
 
-# Decompress/Unarchive Mithril Snapshot
-def deploy_snaphot(archive: Path, out_path: Path):
-
+# Decompress snapshot.tar.zst
+def expand_snap(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    dctx = zstandard.ZstdDecompressor()
+    if platform.system() == "Windows":
+        zstd_executable = os.path.join('C:\\', 'Windows', 'System32', 'zstd.exe')
+    else:
+        zstd_executable = 'zstd'
 
-    with tempfile.TemporaryFile(suffix=".tar") as ofh:
-        with archive.open("rb") as ifh:
-            dctx.copy_stream(ifh, ofh)
-        ofh.seek(0)
-        with tarfile.open(fileobj=ofh) as z:
-            # Get the number of members in the archive for the spinner
-            total_members = len(z.getmembers())
+    # Use subprocess to call zstd for decompression
+    zstd_process = subprocess.Popen(
+        [zstd_executable, '-d', '--stdout', str(archive)],
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE
+    )
 
-            with Spinner(' - Deploying ') as spinner:
-                for member in z.getmembers():
-                    z.extract(member, path=out_path)
-                    spinner.next()
+    # Get total size for progress calculation
+    total_size = os.path.getsize(archive) / (1024 ** 3)
+    chunk_size = 8192
+    processed_size = 0
 
-# Run
+    try:
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' ') as spin:
+            while True:
+                chunk = zstd_process.stdout.read(chunk_size)
+                if not chunk:
+                    break
+                out_file.write(chunk)
+
+                processed_size += len(chunk)  / (1024 ** 3)
+                print(f" Decompress snapshot.tar.zst {processed_size:.1f} Gb", end="", flush=True)
+                spin.next()
+        spin.finish()
+
+    finally:
+        # Wait for the process to finish
+        zstd_process.wait()
+
+        # Check for errors
+        if zstd_process.returncode != 0:
+            error_message = zstd_process.stderr.read().decode()
+            print(f"\nError during decompression: {error_message}")
+
+        # Close subprocess pipes
+        zstd_process.stdout.close()
+        zstd_process.stderr.close()
+
+# Untar snapshot.tar
+def untar_snap(archive: Path, out_path: Path):
+    archive = Path(archive).expanduser()
+    out_path = Path(out_path).expanduser().resolve()
+
+    # Open the tar archive for reading
+    with tarfile.open(archive, 'r') as tar:
+        # Get total size for progress calculation
+        total_size_untar = sum(member.size for member in tar.getmembers()) / (1024 ** 3)
+        processed_size_untar = 0
+        chunk_size_untar = 8192
+
+        # Create progress bar for untarring
+        progress_untar = ShadyBar(' - Unarchive snapshot.tar ', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
+
+        # Iterate through members and extract each file
+        for member in tar:
+            tar.extract(member, path=out_path)
+            processed_size_untar += (member.size / (1024 ** 3))
+            progress_untar.goto(processed_size_untar)
+
+        progress_untar.finish()
+
+# Run program:
 def main():
       try:
        clear_screen()
@@ -128,8 +179,10 @@ def main():
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
 
            # Decompress and Extract contents of the Zstandard-compressed tar archive
-           deploy_snaphot(db_dir / "snapshot.tar.zst", db_dir)
+           expand_snap(db_dir / "snapshot.tar.zst", db_dir)
            os.remove(db_dir / "snapshot.tar.zst")
+           untar_snap(db_dir / "snapshot.tar", db_dir)
+           os.remove(db_dir / "snapshot.tar")
            print()
            print(whi + f"Snapshot has been restored under: {gre}{db_dir}")
            print(whi)
