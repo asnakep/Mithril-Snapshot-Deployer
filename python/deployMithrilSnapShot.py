@@ -3,10 +3,7 @@
 import os
 import sys
 import json
-import platform
 import requests
-import shutil
-import subprocess
 import tarfile
 import tempfile
 import zstandard
