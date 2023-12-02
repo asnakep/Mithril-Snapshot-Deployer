@@ -117,6 +117,7 @@ def main():
            # Run the full script
            print()
            print(whi + f"Latest Mithril Snapshot {gre}{digest}")
+           print()
            print(whi + f"Will be downloaded and deployed under directory: {gre}{db_dir}")
 
            os.chdir(db_dir)
