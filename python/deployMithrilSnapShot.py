@@ -58,8 +58,7 @@ def expand_snap(archive: Path, out_path: Path):
     processed_size = 0
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' Expanding snapshot.tar.zst   ', 
-        index=processed_size, suffix='Inflated: %(index)dGb') as spin:
+        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' ') as spin:
             while True:
                 chunk = zstd_process.stdout.read(chunk_size)
                 if not chunk:
@@ -67,6 +66,7 @@ def expand_snap(archive: Path, out_path: Path):
                 out_file.write(chunk)
 
                 processed_size += len(chunk)  / 1024 / 1024 / 1024
+                print(f" Inflating {processed_size:.1f} Gb", end="", flush=True)
                 spin.next()
         spin.finish()
 
@@ -102,7 +102,7 @@ def untar_snap(archive: Path, out_path: Path):
         chunk_size_untar = 8192
 
         # Create progress bar for untarring
-        progress_untar = IncrementalBar(' Unarchive  ', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
+        progress_untar = IncrementalBar(' Unarchiving', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
 
         # Iterate through members and extract each file
         for member in tar:
@@ -188,7 +188,6 @@ def main():
            # Decompres and Extract contents of the Zstandard-compressed tar archive
            expand_snap(db_dir / "snapshot.tar.zst", db_dir)
            os.remove(db_dir / "snapshot.tar.zst")
-           print()
            untar_snap(db_dir / "snapshot.tar", db_dir)
            os.remove(db_dir / "snapshot.tar")
            print()
