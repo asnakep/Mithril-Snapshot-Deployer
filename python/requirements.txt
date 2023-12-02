@@ -1,2 +1,3 @@
 progress
 requests
+zstandard
