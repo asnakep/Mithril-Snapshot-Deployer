@@ -26,7 +26,7 @@ def download_with_progress(url, save_path):
     processed_size = 0
 
     # Create progress bar for downloading
-    with open(save_path, 'wb') as file, ChargingBar(' - Get Snapshot           ', index=processed_size, max=total_size,
+    with open(save_path, 'wb') as file, ChargingBar(' - Fetching Snapshot ', index=processed_size, max=total_size,
     suffix='    %(percent).1f%% - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
@@ -52,7 +52,7 @@ def deploy_snaphot(archive: Path, out_path: Path):
             # Get the number of members in the archive for the spinner
             total_members = len(z.getmembers())
 
-            with Spinner(' - Deploying Mithril Snapshot ') as spinner:
+            with Spinner(' - Deploying ') as spinner:
                 for member in z.getmembers():
                     z.extract(member, path=out_path)
                     spinner.next()
