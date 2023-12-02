@@ -21,7 +21,7 @@ def clear_screen():
 # Download Mithril Snapshot
 def download_with_progress(url, save_path):
     response = requests.get(url, stream=True)
-    total_size = int(response.headers.get('content-length', 0))  / 1024 / 1024 / 1024
+    total_size = int(response.headers.get('content-length', 0))  / (1024 ** 3)
     block_size = 1024
     processed_size = 0
 
@@ -31,7 +31,7 @@ def download_with_progress(url, save_path):
 
         for data in response.iter_content(block_size):
             file.write(data)
-            processed_size += len(data) / 1024 / 1024 / 1024
+            processed_size += len(data) / (1024 ** 3)
             bar.goto(processed_size)
 
     bar.finish()
@@ -53,7 +53,7 @@ def expand_snap(archive: Path, out_path: Path):
     )
 
     # Get total size for progress calculation
-    total_size = os.path.getsize(archive) / 1024 / 1024 / 1024
+    total_size = os.path.getsize(archive) / (1024 ** 3)
     chunk_size = 8192
     processed_size = 0
 
@@ -65,7 +65,7 @@ def expand_snap(archive: Path, out_path: Path):
                     break
                 out_file.write(chunk)
 
-                processed_size += len(chunk)  / 1024 / 1024 / 1024
+                processed_size += len(chunk)  / (1024 ** 3)
                 print(f" Inflating {processed_size:.1f} Gb", end="", flush=True)
                 spin.next()
         spin.finish()
@@ -97,7 +97,7 @@ def untar_snap(archive: Path, out_path: Path):
     # Open the tar archive for reading
     with tarfile.open(archive, 'r') as tar:
         # Get total size for progress calculation
-        total_size_untar = sum(member.size for member in tar.getmembers()) / 1024 / 1024 / 1024
+        total_size_untar = sum(member.size for member in tar.getmembers()) / (1024 ** 3)
         processed_size_untar = 0
         chunk_size_untar = 8192
 
@@ -107,7 +107,7 @@ def untar_snap(archive: Path, out_path: Path):
         # Iterate through members and extract each file
         for member in tar:
             tar.extract(member, path=out_path)
-            processed_size_untar += (member.size / 1024 / 1024 / 1024)
+            processed_size_untar += (member.size / (1024 ** 3))
             progress_untar.goto(processed_size_untar)
 
         progress_untar.finish()
