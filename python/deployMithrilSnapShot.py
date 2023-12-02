@@ -25,8 +25,8 @@ def download_with_progress(url, save_path):
     processed_size = 0
 
     # Create progress bar for downloading
-    with open(save_path, 'wb') as file, ChargingBar(' Get        ', index=processed_size, max=total_size,
-    suffix='%(percent).1f%% - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
+    with open(save_path, 'wb') as file, ChargingBar(' - Get Snapshot           ', index=processed_size, max=total_size,
+    suffix='    %(percent).1f%% - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
             file.write(data)
@@ -65,7 +65,7 @@ def expand_snap(archive: Path, out_path: Path):
                 out_file.write(chunk)
 
                 processed_size += len(chunk)  / (1024 ** 3)
-                print(f" Inflating {processed_size:.1f} Gb", end="", flush=True)
+                print(f" Decompress snapshot.tar.zst {processed_size:.1f} Gb", end="", flush=True)
                 spin.next()
         spin.finish()
 
@@ -87,12 +87,6 @@ def untar_snap(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # If you are on Windows, ensure you've tar.exe in the PATH
-    if platform.system() == "Windows":
-        tar_executable = 'tar.exe'
-    else:
-        tar_executable = 'tar'
-
     # Open the tar archive for reading
     with tarfile.open(archive, 'r') as tar:
         # Get total size for progress calculation
@@ -101,7 +95,7 @@ def untar_snap(archive: Path, out_path: Path):
         chunk_size_untar = 8192
 
         # Create progress bar for untarring
-        progress_untar = ShadyBar(' Unarchiving', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
+        progress_untar = ShadyBar(' - Unarchive snapshot.tar ', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
 
         # Iterate through members and extract each file
         for member in tar:
@@ -183,7 +177,7 @@ def main():
            # Download with dynamic progress bar
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
 
-           # Decompres and Extract contents of the Zstandard-compressed tar archive
+           # Decompress and Extract contents of the Zstandard-compressed tar archive
            expand_snap(db_dir / "snapshot.tar.zst", db_dir)
            os.remove(db_dir / "snapshot.tar.zst")
            untar_snap(db_dir / "snapshot.tar", db_dir)
