@@ -105,7 +105,7 @@ def untar_snap(archive: Path, out_path: Path):
 
         progress_untar.finish()
 
-# Run program:
+# Run:
 def main():
       try:
        clear_screen()
