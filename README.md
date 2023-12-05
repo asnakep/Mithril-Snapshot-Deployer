@@ -1,4 +1,4 @@
-#Deploy Cardano Blockchain from Latest Mithril Snapshot (Mainnet)
+# Deploy Cardano Blockchain from Latest Mithril Snapshot (Mainnet)
 
 Discover two solutions to download, uncompress, and unarchive the Cardano blockchain onfile database from the latest Mithril Mainnet snapshot, placing it under the path specified by user input.
 
