@@ -3,15 +3,15 @@
 import os
 import sys
 import json
-import platform
 import requests
-import shutil
-import subprocess
 import tarfile
+import threading
+import time
+import zstandard
 from pathlib import Path
 from datetime import datetime
+from humanize import naturalsize
 from progress.bar import ShadyBar
-from progress.bar import ChargingBar
 from progress.spinner import Spinner
 
 def clear_screen():
@@ -24,9 +24,9 @@ def download_with_progress(url, save_path):
     block_size = 1024
     processed_size = 0
 
-    # Create progress bar for downloading
-    with open(save_path, 'wb') as file, ChargingBar(' - Get Snapshot           ', index=processed_size, max=total_size,
-    suffix='    %(percent).1f%% - Downloaded: %(index)d/%(max)dGb - Eta: %(eta)ds') as bar:
+    # Progress bar for downloading
+    with open(save_path, 'wb') as file, ShadyBar(' - Fetching Snapshot ', index=processed_size, max=total_size,
+    suffix='    %(percent).1f%% - Downloaded: %(index)d/%(max)dGiB - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
             file.write(data)
@@ -35,77 +35,85 @@ def download_with_progress(url, save_path):
 
     bar.finish()
 
-# Decompress snapshot.tar.zst
-def expand_snap(archive: Path, out_path: Path):
-    archive = Path(archive).expanduser()
-    out_path = Path(out_path).expanduser().resolve()
+# Track File Size
+class SizeTrackingFile:
+    def __init__(self, file):
+        self.file = file
+        self.expanding_size = 0
+        self.lock = threading.Lock()
 
-    if platform.system() == "Windows":
-        zstd_executable = os.path.join('C:\\', 'Windows', 'System32', 'zstd.exe')
-    else:
-        zstd_executable = 'zstd'
+    def write(self, data):
+        self.file.write(data)
+        with self.lock:
+            self.expanding_size += len(data)
 
-    # Use subprocess to call zstd for decompression
-    zstd_process = subprocess.Popen(
-        [zstd_executable, '-d', '--stdout', str(archive)],
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE
-    )
+    def get_expanding_size_gb(self):
+        with self.lock:
+            return naturalsize(self.expanding_size, binary=True)
 
-    # Get total size for progress calculation
-    total_size = os.path.getsize(archive) / (1024 ** 3)
-    chunk_size = 8192
-    processed_size = 0
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.file.close()
+
+# Add a global variable to signal the progress thread to stop
+stop_progress_thread = False
+
+def print_progress(file):
+    # Hide the cursor
+    print("\033[?25l", end="", flush=True)
 
     try:
-        with open(out_path / 'snapshot.tar', 'wb') as out_file, Spinner(' ') as spin:
-            while True:
-                chunk = zstd_process.stdout.read(chunk_size)
-                if not chunk:
-                    break
-                out_file.write(chunk)
-
-                processed_size += len(chunk)  / (1024 ** 3)
-                print(f" Decompress snapshot.tar.zst {processed_size:.1f} Gb", end="", flush=True)
-                spin.next()
-        spin.finish()
-
+        while not stop_progress_thread:
+            time.sleep(0.1)
+            print(f"\r - Decompressing {file.get_expanding_size_gb():<15}", end="", flush=True)
     finally:
-        # Wait for the process to finish
-        zstd_process.wait()
+        # Show the cursor
+        print("\033[?25h", end="", flush=True)
 
-        # Check for errors
-        if zstd_process.returncode != 0:
-            error_message = zstd_process.stderr.read().decode()
-            print(f"\nError during decompression: {error_message}")
+# Decompress Snapshot
+def decompress_snapshot(archive: Path, out_path: Path):
+    global stop_progress_thread  # Declare the global variable
 
-        # Close subprocess pipes
-        zstd_process.stdout.close()
-        zstd_process.stderr.close()
-
-# Untar snapshot.tar
-def untar_snap(archive: Path, out_path: Path):
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
 
-    # Open the tar archive for reading
-    with tarfile.open(archive, 'r') as tar:
-        # Get total size for progress calculation
-        total_size_untar = sum(member.size for member in tar.getmembers()) / (1024 ** 3)
-        processed_size_untar = 0
-        chunk_size_untar = 8192
+    dctx = zstandard.ZstdDecompressor()
 
-        # Create progress bar for untarring
-        progress_untar = ShadyBar(' - Unarchive snapshot.tar ', index=processed_size_untar ,max=total_size_untar, suffix='%(percent).1f%% - Extracted: %(index)d/%(max)dGb')
+    with archive.open("rb") as ifh:
+        with SizeTrackingFile(open("snapshot.tar", "wb")) as ofh:
+            progress_thread = threading.Thread(target=print_progress, args=(ofh,), daemon=True)
+            progress_thread.start()
 
-        # Iterate through members and extract each file
-        for member in tar:
-            tar.extract(member, path=out_path)
-            processed_size_untar += (member.size / (1024 ** 3))
-            progress_untar.goto(processed_size_untar)
+            dctx.copy_stream(ifh, ofh, read_size=8192, write_size=16384)
 
-        progress_untar.finish()
+    stop_progress_thread = True  # Signal the progress thread to stop
+    progress_thread.join()  # Wait for the progress thread to finish
+    print(f"\r - Decompression completed. Snapshot Size: {ofh.get_expanding_size_gb():<15}")
 
-# Run:
+# Unarchive Snapshot
+def untar_snapshot(snapshot_tar: Path, out_path: Path):
+
+    snapshot_tar = Path(snapshot_tar).expanduser()
+    out_path = Path(out_path).expanduser().resolve()
+
+    with tarfile.open(snapshot_tar) as z:
+        total_size = sum(member.size for member in z.getmembers()) / 1024 / 1024 / 1024
+
+
+        unarchive_spinner = Spinner(' - Deploying ')
+        processed_size = 0
+
+        for member in z.getmembers():
+            z.extract(member, path=out_path)
+            processed_size += member.size / 1024 / 1024 / 1024
+            unarchive_spinner.next()
+            unarchive_spinner.message = f' - Deploying ({processed_size:.1f} GiB of {total_size:.1f} GiB): '
+
+        unarchive_spinner.finish()
+
+# Run
 def main():
       try:
        clear_screen()
@@ -179,9 +187,10 @@ def main():
            download_with_progress(download_url, db_dir / "snapshot.tar.zst")
 
            # Decompress and Extract contents of the Zstandard-compressed tar archive
-           expand_snap(db_dir / "snapshot.tar.zst", db_dir)
+           decompress_snapshot(db_dir / "snapshot.tar.zst", db_dir)
            os.remove(db_dir / "snapshot.tar.zst")
-           untar_snap(db_dir / "snapshot.tar", db_dir)
+           print()
+           untar_snapshot(db_dir / "snapshot.tar", db_dir)
            os.remove(db_dir / "snapshot.tar")
            print()
            print(whi + f"Snapshot has been restored under: {gre}{db_dir}")
@@ -193,6 +202,7 @@ def main():
            elapsed_str = str(elapsed).split('.')[0]
            print(f"Elapsed hh:mm:ss {elapsed_str}")
            print()
+
        else:
            print(whi + "Invalid choice. Please choose 'd' to download only or 'f' to run the full script.")
 
