@@ -3,7 +3,7 @@
 Discover two solutions to download, uncompress, and unarchive the Cardano blockchain onfile database from the latest Mithril Mainnet snapshot, placing it under the path specified by user input.
 
 Select either the Linux Bash or multiplatform Python script; both scripts perform the same action.
-
+<br/>
 Script actions under directory coming from user input:
 <br/>
 1. Download latest mainnet Mithril Snapshot.
