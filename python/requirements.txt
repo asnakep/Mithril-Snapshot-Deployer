@@ -1,4 +1,4 @@
 humanize
 progress
 requests
-zstandards
+zstandard
