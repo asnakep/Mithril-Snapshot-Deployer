@@ -6,6 +6,7 @@ Select either the Linux Bash or multiplatform Python script; both scripts perfor
 
 Script actions under directory coming from user input:
 
+<br/>
 1. Download latest mainnet Mithril Snapshot.
 <br/>
 2. Decompress the downloaded zst snapshot file.
