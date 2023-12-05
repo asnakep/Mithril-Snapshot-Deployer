@@ -5,7 +5,6 @@ Discover two solutions to download, uncompress, and unarchive the Cardano blockc
 Select either the Linux Bash or multiplatform Python script; both scripts perform the same action.
 
 Script actions under directory coming from user input:
-
 <br/>
 1. Download latest mainnet Mithril Snapshot.
 <br/>
