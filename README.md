@@ -10,7 +10,7 @@ Script actions under directory coming from user input:
 <br/>
 2. Decompress the downloaded zst snapshot file.
 <br/>
-Unarchive the decompressed snapshot.
+3. Unarchive the decompressed snapshot.
 <br/>
 
 ![onLinux](https://github.com/asnakep/deployMithrilSnapShot/assets/53517506/239af16d-23e8-4039-8791-3fa6d0f88c72)
