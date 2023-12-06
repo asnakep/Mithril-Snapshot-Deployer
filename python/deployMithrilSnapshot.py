@@ -11,7 +11,7 @@ import zstandard
 from pathlib import Path
 from datetime import datetime
 from humanize import naturalsize
-from progress.bar import ShadyBar
+from progress.bar import ChargingBar
 from progress.spinner import Spinner
 
 def clear_screen():
@@ -25,7 +25,7 @@ def download_with_progress(url, save_path):
     processed_size = 0
 
     # Progress bar for downloading
-    with open(save_path, 'wb') as file, ShadyBar(' - Fetching Snapshot ', index=processed_size, max=total_size,
+    with open(save_path, 'wb') as file, ChargingBar(' Getting Snapshot ', index=processed_size, max=total_size,
     suffix='    %(percent).1f%% - Downloaded: %(index)d/%(max)dGiB - Eta: %(eta)ds') as bar:
 
         for data in response.iter_content(block_size):
@@ -35,7 +35,7 @@ def download_with_progress(url, save_path):
 
     bar.finish()
 
-# Track File Size
+# Decompress Snapshot Track File Size
 class SizeTrackingFile:
     def __init__(self, file):
         self.file = file
@@ -67,14 +67,13 @@ def print_progress(file):
     try:
         while not stop_progress_thread:
             time.sleep(0.1)
-            print(f"\r - Decompressing {file.get_expanding_size_gb():<15}", end="", flush=True)
+            print(f"\r Decompressing Snapshot {file.get_expanding_size_gb():<15}", end="", flush=True)
     finally:
         # Show the cursor
         print("\033[?25h", end="", flush=True)
 
-# Decompress Snapshot
 def decompress_snapshot(archive: Path, out_path: Path):
-    global stop_progress_thread  # Declare the global variable
+    global stop_progress_thread
 
     archive = Path(archive).expanduser()
     out_path = Path(out_path).expanduser().resolve()
@@ -90,7 +89,7 @@ def decompress_snapshot(archive: Path, out_path: Path):
 
     stop_progress_thread = True  # Signal the progress thread to stop
     progress_thread.join()  # Wait for the progress thread to finish
-    print(f"\r - Decompression completed. Snapshot Size: {ofh.get_expanding_size_gb():<15}")
+    print(f"\r Completed. Decompressed Snapshot Size: {ofh.get_expanding_size_gb()}")
 
 # Unarchive Snapshot
 def untar_snapshot(snapshot_tar: Path, out_path: Path):
@@ -109,7 +108,7 @@ def untar_snapshot(snapshot_tar: Path, out_path: Path):
             z.extract(member, path=out_path)
             processed_size += member.size / 1024 / 1024 / 1024
             unarchive_spinner.next()
-            unarchive_spinner.message = f' - Deploying ({processed_size:.1f} GiB of {total_size:.1f} GiB): '
+            unarchive_spinner.message = f' Deploying {processed_size:.1f} GiB of {total_size:.1f} GiB: '
 
         unarchive_spinner.finish()
 
@@ -202,7 +201,6 @@ def main():
            elapsed_str = str(elapsed).split('.')[0]
            print(f"Elapsed hh:mm:ss {elapsed_str}")
            print()
-
        else:
            print(whi + "Invalid choice. Please choose 'd' to download only or 'f' to run the full script.")
 
